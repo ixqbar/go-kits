@@ -263,7 +263,7 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 				request.Name)
 		}
 
-		logger.Printf("%s", monitorString)
+		Logger.Printf("%s", monitorString)
 
 		var result []reflect.Value
 
