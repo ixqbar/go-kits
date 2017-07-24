@@ -298,6 +298,12 @@ func (srv *Server) createReply(r *Request, val interface{}) (ReplyWriter, error)
 	switch v := val.(type) {
 	case []interface{}:
 		return &MultiBulkReply{values: v}, nil
+	case []string:
+		m := make([]interface{}, len(v), cap(v))
+		for i, elem := range v {
+			m[i] = elem
+		}
+		return &MultiBulkReply{values: m}, nil
 	case string:
 		return &BulkReply{value: []byte(v)}, nil
 	case [][]byte:
