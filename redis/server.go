@@ -236,20 +236,18 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 		n := f.Type().NumIn()
 		m := len(request.Args)
 
-		if n - 1 != m {
-			if n >= 2 && f.Type().In(1).AssignableTo(reflect.TypeOf(client)) {
-				input = append(input, reflect.ValueOf(client))
-				n -= 2
-			} else {
-				n -= 1
-			}
+		if n >= 2 && f.Type().In(1).AssignableTo(reflect.TypeOf(client)) {
+			input = append(input, reflect.ValueOf(client))
+			n -= 2
+		} else {
+			n -= 1
+		}
 
-			if n < m {
-				return ErrWrongArgsNumber,nil
-			} else {
-				for i := 0; i < n-m; i++ {
-					request.Args = append(request.Args, nil)
-				}
+		if n < m {
+			return ErrWrongArgsNumber,nil
+		} else {
+			for i := 0; i < n-m; i++ {
+				request.Args = append(request.Args, nil)
 			}
 		}
 
