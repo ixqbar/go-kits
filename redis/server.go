@@ -142,6 +142,7 @@ func (srv *Server) handleConn(conn net.Conn) (err error) {
 	clientChan := make(chan struct{})
 
 	defer func() {
+		Logger.Printf("client closed %s", conn.RemoteAddr())
 		conn.Close()
 		close(clientChan)
 	}()
@@ -254,6 +255,7 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 		for _, checker := range checkers {
 			value, reply := checker(request)
 			if reply != nil {
+				Logger.Printf("error at checker and response %v", reply)
 				return reply, nil
 			}
 
