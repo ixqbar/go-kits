@@ -123,6 +123,8 @@ func (srv *Server) Stop(timeout uint) error {
 		srv.socket.(*net.UnixListener).SetDeadline(time.Now())
 	}
 
+	defer Logger.Printf("redis server stop at %s", srv.addr)
+
 	tt := time.NewTimer(time.Second * time.Duration(timeout))
 	wait := make(chan struct{})
 	go func() {
