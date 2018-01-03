@@ -140,15 +140,17 @@ func (srv *Server) Stop(timeout uint) error {
 
 	defer Logger.Printf("redis server stop at %s", srv.addr)
 
-	tt := time.NewTimer(time.Second * time.Duration(timeout))
 	wait := make(chan struct{})
+
+	defer close(wait)
+
 	go func() {
 		srv.cm.Wait()
 		wait <- struct{}{}
 	}()
 
 	select {
-	case <-tt.C:
+	case <-time.After(time.Second * time.Duration(timeout)):
 		return ErrStopServerTimeout
 	case <-wait:
 		return nil
