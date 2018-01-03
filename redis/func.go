@@ -1,11 +1,10 @@
 package redis
 
 import (
-	"strconv"
 	"errors"
-	"io"
-	"bytes"
 	"fmt"
+	"io"
+	"strconv"
 )
 
 func malformed(expected string, got string) error {
@@ -20,22 +19,11 @@ func malformedMissingCRLF() error {
 	return fmt.Errorf("Mailformed request: line should end with \\r\\n")
 }
 
-func ReplyToString(r ReplyWriter) (string, error) {
-	var b bytes.Buffer
-
-	_, err := r.WriteTo(&b)
-	if err != nil {
-		return "ERROR!", err
-	}
-
-	return b.String(), nil
-}
-
 func SeqMapReply(h *SeqMap) (*MultiBulkReply, error) {
-	values := make([]interface{}, h.Len() * 2)
+	values := make([]interface{}, h.Len()*2)
 	i := 0
 	for _, key := range h.Keys {
-		values[i]   = []byte(key)
+		values[i] = []byte(key)
 		values[i+1] = h.Data[key]
 		i += 2
 	}
@@ -56,7 +44,7 @@ func MultiBulkFromMap(m map[string]interface{}) *MultiBulkReply {
 	values := make([]interface{}, len(m)*2)
 	i := 0
 	for key, val := range m {
-		values[i]   = []byte(key)
+		values[i] = []byte(key)
 		values[i+1] = val
 		i += 2
 	}
@@ -116,10 +104,12 @@ func writeMultiBytes(values []interface{}, w io.Writer) (int64, error) {
 	if values == nil {
 		return 0, errors.New("Nil in multi bulk replies are not ok")
 	}
+
 	wrote, err := w.Write([]byte("*" + strconv.Itoa(len(values)) + "\r\n"))
 	if err != nil {
 		return int64(wrote), err
 	}
+
 	wrote64 := int64(wrote)
 	for _, v := range values {
 		wroteBytes, err := writeBytes(v, w)

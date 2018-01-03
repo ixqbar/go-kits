@@ -5,18 +5,18 @@ type SeqMap struct {
 	Keys []string
 }
 
-func NewSeqMap() (*SeqMap) {
+func NewSeqMap() *SeqMap {
 	return &SeqMap{
-		Data : make(map[string]interface{}, 0),
-		Keys : make([]string, 0),
+		Data: make(map[string]interface{}, 0),
+		Keys: make([]string, 0),
 	}
 }
 
-func (this *SeqMap) Len() (int) {
+func (this *SeqMap) Len() int {
 	return len(this.Keys)
 }
 
-func (this *SeqMap) Add(key string, value interface{})  {
+func (this *SeqMap) Add(key string, value interface{}) {
 	if _, ok := this.Data[key]; ok == false {
 		this.Keys = append(this.Keys, key)
 	}

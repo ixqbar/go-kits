@@ -1,27 +1,30 @@
 package redis
 
 import (
-	"strconv"
 	"net"
+	"strconv"
 	"time"
 )
 
 type Client struct {
-	Conn net.Conn
-	DB int
-	ConnectedTime time.Time
+	Conn         net.Conn
+	DB           int
+	Time         time.Time
+	Host         string
+	UseSubscribe bool
+	Handler      *RedisHandler
 }
 
 type Request struct {
-	Name       string
-	Args       [][]byte
-	Host       string
-	Conn       net.Conn
-	ClientChan chan struct{}
+	Name    string
+	Args    [][]byte
+	Host    string
+	Conn    net.Conn
+	Channel chan struct{}
 }
 
 func (r *Request) HasArgument(index int) bool {
-	return len(r.Args) >= index + 1
+	return len(r.Args) >= index+1
 }
 
 func (r *Request) ExpectArgument(index int) ReplyWriter {
@@ -85,7 +88,7 @@ func (r *Request) GetMap(index int) (map[string][]byte, ReplyWriter) {
 		return nil, ErrExpectMorePair
 	}
 
-	if count % 2 != 0 {
+	if count%2 != 0 {
 		return nil, ErrExpectEvenPair
 	}
 

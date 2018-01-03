@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
 	"net"
+	"strings"
 )
 
 func parseRequest(conn net.Conn) (*Request, error) {
@@ -37,9 +37,9 @@ func parseRequest(conn net.Conn) (*Request, error) {
 		}
 
 		return &Request{
-			Name : strings.ToLower(string(firstArg)),
-			Args : args,
-			Conn : conn,
+			Name: strings.ToLower(string(firstArg)),
+			Args: args,
+			Conn: conn,
 		}, nil
 	}
 
@@ -53,9 +53,9 @@ func parseRequest(conn net.Conn) (*Request, error) {
 	}
 
 	return &Request{
-		Name : strings.ToLower(string(fields[0])),
-		Args : args,
-		Conn : conn,
+		Name: strings.ToLower(string(fields[0])),
+		Args: args,
+		Conn: conn,
 	}, nil
 
 }

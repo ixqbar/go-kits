@@ -1,13 +1,13 @@
 package redis
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"strings"
-	"errors"
 	"time"
-	"bytes"
 )
 
 type HandlerFn func(r *Request, c *Client) (ReplyWriter, error)
@@ -23,11 +23,11 @@ type Server struct {
 
 func NewServer(addr string, handler Handler) (*Server, error) {
 	srv := &Server{
-		proto   : "",
-		addr    : addr,
-		methods : make(map[string]HandlerFn),
-		socket  : nil,
-		cm      : NewConnectionManager(),
+		proto:   "",
+		addr:    addr,
+		methods: make(map[string]HandlerFn),
+		socket:  nil,
+		cm:      NewConnectionManager(),
 	}
 
 	rh := reflect.TypeOf(handler)
@@ -83,7 +83,7 @@ func (srv *Server) Start() error {
 
 func (srv *Server) acceptLoop() error {
 	defer func() {
-		if (srv.proto == "tcp") {
+		if srv.proto == "tcp" {
 			srv.socket.(*net.TCPListener).Close()
 		} else {
 			srv.socket.(*net.UnixListener).Close()
@@ -92,7 +92,7 @@ func (srv *Server) acceptLoop() error {
 
 	for {
 		conn, err := func() (net.Conn, error) {
-			if (srv.proto == "tcp") {
+			if srv.proto == "tcp" {
 				return srv.socket.(*net.TCPListener).Accept()
 			} else {
 				return srv.socket.(*net.UnixListener).Accept()
@@ -101,14 +101,29 @@ func (srv *Server) acceptLoop() error {
 
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				break;
+				break
 			}
 			continue
 		}
 
 		go func() {
+			clientAddr := "unknown"
+
+			switch co := conn.(type) {
+			case *net.UnixConn:
+				f, err := conn.(*net.UnixConn).File()
+				if err == nil {
+					clientAddr = f.Name()
+				}
+			default:
+				clientAddr = co.RemoteAddr().String()
+			}
+
 			srv.cm.Add(1)
-			srv.handleConn(conn)
+			err := srv.handleConn(conn, clientAddr)
+			if err != nil {
+				Logger.Printf("handle connection %s failed %s", clientAddr, err)
+			}
 			srv.cm.Done()
 		}()
 	}
@@ -117,7 +132,7 @@ func (srv *Server) acceptLoop() error {
 }
 
 func (srv *Server) Stop(timeout uint) error {
-	if (srv.proto == "tcp") {
+	if srv.proto == "tcp" {
 		srv.socket.(*net.TCPListener).SetDeadline(time.Now())
 	} else {
 		srv.socket.(*net.UnixListener).SetDeadline(time.Now())
@@ -140,33 +155,24 @@ func (srv *Server) Stop(timeout uint) error {
 	}
 }
 
-func (srv *Server) handleConn(conn net.Conn) (err error) {
-	clientChan := make(chan struct{})
+func (srv *Server) handleConn(conn net.Conn, clientAddr string) (err error) {
+	clientChannel := make(chan struct{})
+	client := &Client{
+		Conn:         conn,
+		DB:           0,
+		Time:         time.Now(),
+		Host:         clientAddr,
+		UseSubscribe: false,
+	}
 
 	defer func() {
-		Logger.Printf("client closed %s", conn.RemoteAddr())
-		conn.Close()
-		close(clientChan)
-	}()
-
-	var clientAddr string
-
-	switch co := conn.(type) {
-	case *net.UnixConn:
-		f, err := conn.(*net.UnixConn).File()
-		if err != nil {
-			return err
+		Logger.Printf("client closed %s", clientAddr)
+		if client.UseSubscribe {
+			client.Handler.ClearSubscribe(clientAddr)
 		}
-		clientAddr = f.Name()
-	default:
-		clientAddr = co.RemoteAddr().String()
-	}
-
-	client := &Client{
-		Conn:conn,
-		DB:0,
-		ConnectedTime:time.Now(),
-	}
+		close(clientChannel)
+		conn.Close()
+	}()
 
 	for {
 		request, err := parseRequest(conn)
@@ -181,6 +187,7 @@ func (srv *Server) handleConn(conn net.Conn) (err error) {
 		}
 
 		request.Host = clientAddr
+		request.Channel = clientChannel
 		reply, err := srv.apply(request, client)
 		if err != nil {
 			reply = NewErrorReply(err.Error())
@@ -199,7 +206,7 @@ func (srv *Server) apply(r *Request, c *Client) (ReplyWriter, error) {
 		return ErrMethodNotSupported, nil
 	}
 
-	Logger.Printf("got client %s command %s args %s", r.Conn.RemoteAddr(), r.Name, r.Args)
+	Logger.Printf("%s command %s args %s", r.Host, r.Name, r.Args)
 
 	fn, exists := srv.methods[strings.ToLower(r.Name)]
 	if !exists {
@@ -247,7 +254,7 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 		}
 
 		if n < m {
-			return ErrWrongArgsNumber,nil
+			return ErrWrongArgsNumber, nil
 		} else {
 			for i := 0; i < n-m; i++ {
 				request.Args = append(request.Args, nil)
@@ -266,16 +273,12 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 
 		var monitorString string
 		if len(request.Args) > 0 {
-			monitorString = fmt.Sprintf("%.6f [%s] \"%s\" \"%s\"",
-				float64(time.Now().UTC().UnixNano())/1e9,
+			monitorString = fmt.Sprintf("%s \"%s\" \"%s\"",
 				request.Host,
 				request.Name,
 				bytes.Join(request.Args, []byte{'"', ' ', '"'}))
 		} else {
-			monitorString = fmt.Sprintf("%.6f [%s] \"%s\"",
-				float64(time.Now().UTC().UnixNano())/1e9,
-				request.Host,
-				request.Name)
+			monitorString = fmt.Sprintf("%s \"%s\"", request.Host, request.Name)
 		}
 
 		Logger.Printf("%s", monitorString)
@@ -342,6 +345,13 @@ func (srv *Server) createReply(r *Request, val interface{}) (ReplyWriter, error)
 		return v, nil
 	case *SeqMap:
 		return SeqMapReply(v)
+	case *ChannelWriter:
+		return v, nil
+	case *MultiChannelWriter:
+		for _, mcw := range v.ChannelWriters {
+			mcw.ClientRequest = r
+		}
+		return v, nil
 	default:
 		return nil, fmt.Errorf("Unsupported type: %s (%T)", v, v)
 	}

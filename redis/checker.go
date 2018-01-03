@@ -1,9 +1,9 @@
 package redis
 
 import (
-	"reflect"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 func createCheckers(autoHandler interface{}, f *reflect.Value) ([]CheckerFn, error) {
