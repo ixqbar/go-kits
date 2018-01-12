@@ -103,7 +103,7 @@ func (c *ChannelWriter) WriteTo(w io.Writer) (int64, error) {
 		return totalBytes, err
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
 
 	defer func() {
 		ticker.Stop()
