@@ -35,6 +35,10 @@ func (obj *RedisHandler) CheckShield(name string) bool {
 	return ok
 }
 
+func (obj *RedisHandler) CanPublish() bool  {
+	return len(obj.SubChannels) > 0
+}
+
 func (obj *RedisHandler) Initiation(f func()) bool {
 	if obj.SubChannels == nil {
 		obj.SubChannels = make(HashSubChannels)
@@ -49,6 +53,7 @@ func (obj *RedisHandler) Initiation(f func()) bool {
 	obj.SetShield("CheckShield")
 	obj.SetShield("Initiation")
 	obj.SetShield("ClearSubscribe")
+	obj.SetShield("CanPublish")
 
 	if f != nil {
 		f()
