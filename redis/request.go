@@ -48,6 +48,10 @@ func (r *Request) GetInteger(index int) (int, ReplyWriter) {
 		return -1, reply
 	}
 
+	if r.Args[index] == nil {
+		return 0, nil
+	}
+
 	i, err := strconv.Atoi(string(r.Args[index]))
 	if err != nil {
 		return -1, ErrExpectInteger

@@ -212,6 +212,7 @@ func (srv *Server) apply(r *Request, c *Client) (ReplyWriter, error) {
 
 	fn, exists := srv.methods[strings.ToLower(r.Name)]
 	if !exists {
+		Logger.Printf("not found handle method %s", r.Name)
 		return ErrMethodNotSupported, nil
 	}
 
