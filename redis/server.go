@@ -19,6 +19,7 @@ type Server struct {
 	methods map[string]HandlerFn
 	socket  interface{}
 	cm      *ConnectionManager
+	running bool
 }
 
 func NewServer(addr string, handler Handler) (*Server, error) {
@@ -28,6 +29,7 @@ func NewServer(addr string, handler Handler) (*Server, error) {
 		methods: make(map[string]HandlerFn),
 		socket:  nil,
 		cm:      NewConnectionManager(),
+		running: false,
 	}
 
 	rh := reflect.TypeOf(handler)
@@ -77,6 +79,8 @@ func (srv *Server) Start() error {
 		srv.socket = sock
 		srv.proto = "unix"
 	}
+
+	srv.running = true
 
 	return srv.acceptLoop()
 }
@@ -132,6 +136,10 @@ func (srv *Server) acceptLoop() error {
 }
 
 func (srv *Server) Stop(timeout uint) error {
+	if srv.running == false {
+		return nil
+	}
+
 	if srv.proto == "tcp" {
 		srv.socket.(*net.TCPListener).SetDeadline(time.Now())
 	} else {

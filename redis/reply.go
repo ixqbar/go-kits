@@ -1,10 +1,10 @@
 package redis
 
 import (
-	"io"
-	"strconv"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 	"time"
 )
 

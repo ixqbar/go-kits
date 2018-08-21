@@ -1,8 +1,8 @@
 package pool
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
 
 func TestNewWorker(t *testing.T) {

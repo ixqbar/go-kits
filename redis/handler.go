@@ -7,8 +7,8 @@ type Handler interface {
 type HashSubChannels map[string][]*ChannelWriter
 
 type RedisHandler struct {
-	Shield map[string]bool
-	Config map[string]interface{}
+	Shield      map[string]bool
+	Config      map[string]interface{}
 	SubChannels HashSubChannels
 }
 
@@ -35,7 +35,7 @@ func (obj *RedisHandler) CheckShield(name string) bool {
 	return ok
 }
 
-func (obj *RedisHandler) CanPublish() bool  {
+func (obj *RedisHandler) CanPublish() bool {
 	return len(obj.SubChannels) > 0
 }
 
@@ -67,14 +67,14 @@ func (obj *RedisHandler) ClearSubscribe(name string) bool {
 		return false
 	}
 
-	for n,l := range obj.SubChannels {
+	for n, l := range obj.SubChannels {
 		if len(l) == 0 {
 			delete(obj.SubChannels, n)
 			continue
 		}
 
 		leftChannelWriters := make([]*ChannelWriter, 0)
-		for _,v := range l {
+		for _, v := range l {
 			if v.Name != name {
 				leftChannelWriters = append(leftChannelWriters, v)
 			}
