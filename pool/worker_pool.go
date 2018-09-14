@@ -3,17 +3,19 @@ package pool
 import "sync"
 
 type Worker struct {
-	worker func()
+	worker func(params interface{})
+	params interface{}
 }
 
-func NewWorker(worker func()) *Worker {
+func NewWorker(worker func(params interface{}), params interface{}) *Worker {
 	return &Worker{
 		worker: worker,
+		params: params,
 	}
 }
 
 func (obj *Worker) Run() {
-	obj.worker()
+	obj.worker(obj.params)
 }
 
 type WorkerPool struct {
