@@ -17,7 +17,7 @@ func TestNewWorker(t *testing.T) {
 	workPool.AddWorker(NewWorker(func(params interface{}) {
 		fmt.Println("hello1")
 		fmt.Println(params)
-	},  "todo"))
+	}, "todo"))
 
 	workPool.WaitStop()
 }

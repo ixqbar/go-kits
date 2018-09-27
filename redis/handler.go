@@ -39,6 +39,10 @@ func (obj *RedisHandler) CanPublish() bool {
 	return len(obj.SubChannels) > 0
 }
 
+func (obj *RedisHandler) Command() error {
+	return nil
+}
+
 func (obj *RedisHandler) Initiation(f func()) bool {
 	if obj.SubChannels == nil {
 		obj.SubChannels = make(HashSubChannels)

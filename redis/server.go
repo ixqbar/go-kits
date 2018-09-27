@@ -42,6 +42,7 @@ func NewServer(addr string, handler Handler) (*Server, error) {
 
 		handlerFn, err := srv.createHandlerFn(handler, &method)
 		if err != nil {
+			Logger.Print(err)
 			return nil, err
 		}
 
@@ -216,11 +217,11 @@ func (srv *Server) apply(r *Request, c *Client) (ReplyWriter, error) {
 		return ErrMethodNotSupported, nil
 	}
 
-	Logger.Printf("%s command %s args %s", r.Host, r.Name, r.Args)
+	Logger.Printf("%s command `%s` args %s", r.Host, r.Name, r.Args)
 
 	fn, exists := srv.methods[strings.ToLower(r.Name)]
 	if !exists {
-		Logger.Printf("not found handle method %s", r.Name)
+		Logger.Printf("not found handle method `%s`", r.Name)
 		return ErrMethodNotSupported, nil
 	}
 
