@@ -2,14 +2,17 @@ package redis
 
 type Handler interface {
 	CheckShield(string) bool
+	CallClientStateChangedFunc(client *Client, state int)
 }
 
 type HashSubChannels map[string][]*ChannelWriter
+type ClientStateChangeFunc func(client *Client, state int)
 
 type RedisHandler struct {
 	Shield      map[string]bool
 	Config      map[string]interface{}
 	SubChannels HashSubChannels
+	clientStateChangedFunc ClientStateChangeFunc
 }
 
 func (obj *RedisHandler) SetShield(name string) *RedisHandler {
@@ -43,10 +46,22 @@ func (obj *RedisHandler) Command() error {
 	return nil
 }
 
+func (obj *RedisHandler) RegisterClientStateChangedFunc(fc ClientStateChangeFunc) {
+	obj.clientStateChangedFunc = fc
+}
+
+func (obj *RedisHandler) CallClientStateChangedFunc(client *Client, state int) {
+	if obj.clientStateChangedFunc != nil {
+		obj.clientStateChangedFunc(client, state)
+	}
+}
+
 func (obj *RedisHandler) Initiation(f func()) bool {
 	if obj.SubChannels == nil {
 		obj.SubChannels = make(HashSubChannels)
 	}
+
+	obj.clientStateChangedFunc = nil
 
 	obj.SetShield("Init")
 	obj.SetShield("Shutdown")
@@ -58,6 +73,8 @@ func (obj *RedisHandler) Initiation(f func()) bool {
 	obj.SetShield("Initiation")
 	obj.SetShield("ClearSubscribe")
 	obj.SetShield("CanPublish")
+	obj.SetShield("CallClientStateChangedFunc")
+	obj.SetShield("RegisterClientStateChangedFunc")
 
 	if f != nil {
 		f()

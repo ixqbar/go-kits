@@ -10,26 +10,31 @@ import (
 	"time"
 )
 
+const (
+	CLIENT_STATE_IS_CONNECTED    = 1
+	CLIENT_STATE_IS_DISCONNECTED = 2
+)
+
 type HandlerFn func(r *Request, c *Client) (ReplyWriter, error)
 type CheckerFn func(request *Request) (reflect.Value, ReplyWriter)
 
 type Server struct {
-	proto   string
-	addr    string
-	methods map[string]HandlerFn
-	socket  interface{}
-	cm      *ConnectionManager
-	running bool
+	addr     string
+	methods  map[string]HandlerFn
+	listener *net.TCPListener
+	cm       *ConnectionManager
+	running  bool
+	handler  Handler
 }
 
 func NewServer(addr string, handler Handler) (*Server, error) {
 	srv := &Server{
-		proto:   "",
-		addr:    addr,
-		methods: make(map[string]HandlerFn),
-		socket:  nil,
-		cm:      NewConnectionManager(),
-		running: false,
+		addr:     addr,
+		methods:  make(map[string]HandlerFn),
+		listener: nil,
+		cm:       NewConnectionManager(),
+		running:  false,
+		handler:  handler,
 	}
 
 	rh := reflect.TypeOf(handler)
@@ -53,56 +58,27 @@ func NewServer(addr string, handler Handler) (*Server, error) {
 }
 
 func (srv *Server) Start() error {
-	if strings.Contains(srv.addr, ":") {
-		addr, err := net.ResolveTCPAddr("tcp", srv.addr)
-		if err != nil {
-			return fmt.Errorf("fail to resolve addr: %v", err)
-		}
-
-		sock, err := net.ListenTCP("tcp", addr)
-		if err != nil {
-			return fmt.Errorf("fail to listen tcp: %v", err)
-		}
-
-		srv.socket = sock
-		srv.proto = "tcp"
-	} else {
-		addr, err := net.ResolveUnixAddr("unix", srv.addr)
-		if err != nil {
-			return fmt.Errorf("fail to resolve addr: %v", err)
-		}
-
-		sock, err := net.ListenUnix("unix", addr)
-		if err != nil {
-			return fmt.Errorf("fail to listen tcp: %v", err)
-		}
-
-		srv.socket = sock
-		srv.proto = "unix"
+	addr, err := net.ResolveTCPAddr("tcp", srv.addr)
+	if err != nil {
+		return fmt.Errorf("fail to resolve addr: %v", err)
 	}
 
+	listener, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("fail to listen tcp: %v", err)
+	}
+
+	srv.listener = listener
 	srv.running = true
 
 	return srv.acceptLoop()
 }
 
 func (srv *Server) acceptLoop() error {
-	defer func() {
-		if srv.proto == "tcp" {
-			srv.socket.(*net.TCPListener).Close()
-		} else {
-			srv.socket.(*net.UnixListener).Close()
-		}
-	}()
+	defer srv.listener.Close()
 
 	for {
-		conn, err := func() (net.Conn, error) {
-			if srv.proto == "tcp" {
-				return srv.socket.(*net.TCPListener).Accept()
-			} else {
-				return srv.socket.(*net.UnixListener).Accept()
-			}
-		}()
+		conn, err := srv.listener.Accept()
 
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
@@ -141,11 +117,7 @@ func (srv *Server) Stop(timeout uint) error {
 		return nil
 	}
 
-	if srv.proto == "tcp" {
-		srv.socket.(*net.TCPListener).SetDeadline(time.Now())
-	} else {
-		srv.socket.(*net.UnixListener).SetDeadline(time.Now())
-	}
+	srv.listener.SetDeadline(time.Now())
 
 	defer Logger.Printf("redis server stop at %s", srv.addr)
 
@@ -176,11 +148,15 @@ func (srv *Server) handleConn(conn net.Conn, clientAddr string) (err error) {
 		UseSubscribe: false,
 	}
 
+	Logger.Printf("client %s connected", clientAddr)
+	go srv.handler.CallClientStateChangedFunc(client, CLIENT_STATE_IS_CONNECTED)
+
 	defer func() {
-		Logger.Printf("client closed %s", clientAddr)
+		Logger.Printf("client %s closed", clientAddr)
 		if client.UseSubscribe {
 			client.Handler.ClearSubscribe(clientAddr)
 		}
+		srv.handler.CallClientStateChangedFunc(client, CLIENT_STATE_IS_DISCONNECTED)
 		close(clientChannel)
 		conn.Close()
 	}()
