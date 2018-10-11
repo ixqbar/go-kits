@@ -241,9 +241,7 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 			n -= 1
 		}
 
-		if n < m {
-			return ErrWrongArgsNumber, nil
-		} else {
+		if n > m {
 			for i := 0; i < n-m; i++ {
 				request.Args = append(request.Args, nil)
 			}
@@ -288,6 +286,7 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 		var ret interface{}
 		if ierr := result[len(result)-1].Interface(); ierr != nil {
 			err := ierr.(error)
+			Logger.Printf("%s do command `%s` failed with `%v`", request.Host, request.Name, err)
 			return NewErrorReply(err.Error()), nil
 		}
 
