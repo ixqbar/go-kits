@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -238,7 +239,9 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 			n -= 1
 		}
 
-		if n > m {
+		if n < m {
+			return ErrWrongArgsNumber, nil
+		} else {
 			for i := 0; i < n-m; i++ {
 				request.Args = append(request.Args, nil)
 			}
@@ -253,6 +256,18 @@ func (srv *Server) handlerFn(autoHandler interface{}, f *reflect.Value, checkers
 
 			input = append(input, value)
 		}
+
+		var monitorString string
+		if len(request.Args) > 0 {
+			monitorString = fmt.Sprintf("%s \"%s\" \"%s\"",
+				request.Host,
+				request.Name,
+				bytes.Join(request.Args, []byte{'"', ' ', '"'}))
+		} else {
+			monitorString = fmt.Sprintf("%s \"%s\"", request.Host, request.Name)
+		}
+
+		Logger.Printf("%s", monitorString)
 
 		var result []reflect.Value
 
